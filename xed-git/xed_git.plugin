@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=xed_git
+IAge=3
+Name=Xed Git
+Description=Highlights lines changed since the last commit.
+Authors=Gabriell Araujo (Xed port); based on gedit plugin by Ignacio Casal Quinteiro and Garrett Regier
+Copyright=Copyright (c) 2013 Ignacio Casal Quinteiro; Copyright (c) 2014 Garrett Regier; Copyright (c) 2025 Gabriell Araujo
+Website=https://github.com/gabriellaraujocoding/xed-extra-plugins

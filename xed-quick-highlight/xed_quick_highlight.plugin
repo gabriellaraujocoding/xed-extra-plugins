@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=xed_quick_highlight
+IAge=3
+Name=Xed Quick Highlight
+Description=Highlights all occurrences of the currently selected text (single-line selection).
+Authors=Gabriell Araujo (Xed port); based on gedit plugin by Martin Blanchard
+Copyright=Copyright (c) 2018 Martin Blanchard; Copyright (c) 2025 Gabriell Araujo
+Website=https://github.com/gabriellaraujocoding/xed-extra-plugins

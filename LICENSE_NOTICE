@@ -1,0 +1,68 @@
+LICENSE NOTICE
+==============
+
+This repository is a collection of independent Xed plugins. Different plugins
+may be distributed under different licenses.
+
+- The repository root LICENSE contains the text of the GNU General Public License v2.
+- Each plugin directory also contains its own LICENSE file.
+- Source files include SPDX headers; when there is a conflict, the SPDX header
+  and the plugin-local LICENSE should be treated as authoritative for that plugin.
+
+Summary (per plugin)
+--------------------
+
+1) xed-git
+  - Path: xed-git/
+  - SPDX: GPL-2.0-or-later
+  - Copyright:
+      * 2013 Ignacio Casal Quinteiro
+      * 2014 Garrett Regier
+      * 2025 Gabriell Araujo (Xed port)
+  - License text: xed-git/LICENSE (and repository root LICENSE)
+
+2) xed-indentation-guides
+  - Path: xed-indentation-guides/
+  - SPDX: GPL-2.0-or-later
+  - Copyright:
+      * 2025 Gabriell Araujo
+  - License text: xed-indentation-guides/LICENSE (and repository root LICENSE)
+
+3) xed-quick-highlight
+  - Path: xed-quick-highlight/
+  - SPDX: GPL-2.0-or-later
+  - Copyright:
+      * 2018 Martin Blanchard
+      * 2025 Gabriell Araujo (Xed port)
+  - License text: xed-quick-highlight/LICENSE (and repository root LICENSE)
+
+4) xed-source-code-browser
+  - Path: xed-source-code-browser/
+  - SPDX: BSD-3-Clause
+  - Copyright:
+      * 2011 Micah Carrick
+      * 2020-2021 MATE Developers
+      * 2025 Gabriell Araujo (Xed port)
+  - License text: xed-source-code-browser/LICENSE
+
+5) xed-split-pane
+  - Path: xed-split-pane/
+  - SPDX: GPL-2.0-or-later
+  - Copyright:
+      * 2025 Gabriell Araujo
+  - License text: xed-split-pane/LICENSE (and repository root LICENSE)
+   
+6) xed-terminal
+  - Path: xed-terminal/
+  - SPDX: GPL-2.0-or-later
+  - Copyright:
+      * 2005–2006 Paolo Borelli
+      * 2025 Gabriell Araujo (Xed port)
+  - License text: xed-terminal/LICENSE (and repository root LICENSE)
+
+Notes
+-----
+- Keep the relevant LICENSE file(s) and copyright notices when redistributing
+  a plugin or a modified version of it.
+- This file is provided for convenience as a high-level overview and does not
+  replace the full license texts or the SPDX headers in the source files.

@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=xed_source_code_browser
+IAge=3
+Name=Xed Source Code Browser
+Description=Shows a tree of symbols (functions, classes, variables, etc.) for the active document using ctags.
+Authors=Gabriell Araujo (Xed port); based on Pluma plugin by Micah Carrick and MATE Developers
+Copyright=Copyright (c) 2011 Micah Carrick; Copyright (c) 2020-2021 MATE Developers; Copyright (c) 2025 Gabriell Araujo
+Website=https://github.com/gabriellaraujocoding/xed-extra-plugins

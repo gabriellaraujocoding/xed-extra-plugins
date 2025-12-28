@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=xed_split_pane
+IAge=3
+Name=Xed Split Pane
+Description=Splits the editor with a pinned left pane; click the left filename to choose from open tabs.
+Authors=Gabriell Araujo
+Copyright=Copyright (c) 2025 Gabriell Araujo
+Website=https://github.com/gabriellaraujocoding/xed-extra-plugins

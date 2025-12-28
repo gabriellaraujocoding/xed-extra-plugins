@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=xed_terminal
+IAge=3
+Name=Xed Terminal
+Description=Embedded VTE terminal in Xed's bottom pane with multiple tabs and configurable colors.
+Authors=Gabriell Araujo (Xed port); based on gedit's embedded terminal plugin by Paolo Borelli
+Copyright=Copyright (c) 2005-2006 Paolo Borelli; Copyright (c) 2025 Gabriell Araujo
+Website=https://github.com/gabriellaraujocoding/xed-extra-plugins

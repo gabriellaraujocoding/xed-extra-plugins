@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=xed_indentation_guides
+IAge=3
+Name=Xed Indentation Guides
+Description=VS Code-like indentation guides based on leading whitespace and tab width.
+Authors=Gabriell Araujo
+Copyright=Copyright (c) 2025 Gabriell Araujo
+Website=https://github.com/gabriellaraujocoding/xed-extra-plugins
