@@ -30,7 +30,7 @@ A clean implementation for Xed (Linux Mint):
   with the pinned one in bold.
 - Scrollbars are forced visible in BOTH panes (non-overlay, always).
 - Font/zoom is mirrored between RIGHT active tab pane and LEFT pinned pane.
-- Status bar: adds a clickable "Toggle Split Pane" text on
+- Status bar: adds a clickable "Toggle Split Pane" text on status bar
 
 Hotkey: Ctrl+Alt+P (best-effort) + View menu entry + clickable status bar text.
 
@@ -126,7 +126,15 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
 
         # Signals
         self._nb_switch_sid = None
-        self._font_sids = []  # list of (obj, sid)
+
+        # Right->Left sync signals
+        self._font_sids = []            # list of (obj, sid)
+        self._font_sync_src_view = None # which RIGHT view we are currently mirroring
+        self._font_sync_dst_view = None  # which LEFT view we are currently mirroring into
+
+        # Wrap state (treated as global while split is active)
+        self._global_wrap_mode = None
+        self._wrap_syncing = False
 
         # Menu integration (UIManager)
         self._ui_manager = None
@@ -139,7 +147,7 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
         # Cursor handling
         self._pointer_cursor = None
         self._default_cursor = None
-        
+
         # Statusbar toggle ("Toggle Split Pane")
         self._status_toggle_parent = None
         self._status_toggle_eventbox = None
@@ -330,7 +338,14 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
         GLib.idle_add(self._set_paned_half, self._paned)
 
         self._install_notebook_signals()
-        self._install_font_sync(refresh_only=False)
+
+        # IMPORTANT:
+        # - LEFT mirrors zoom from ACTIVE RIGHT tab
+        # - wrap-mode treated as global while split is active
+        # - we call sync on idle and timeout to ensure sync between panes
+        self._install_font_sync()
+        GLib.idle_add(self._late_font_sync)
+        GLib.timeout_add(200, self._late_font_sync)
 
         _debug("split: enabled")
 
@@ -380,6 +395,11 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
 
         self._pointer_cursor = None
         self._default_cursor = None
+
+        self._font_sync_src_view = None
+        self._font_sync_dst_view = None
+        self._global_wrap_mode = None
+        self._wrap_syncing = False  
 
     # ---------------- Left header ----------------
 
@@ -552,15 +572,20 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
         like = self._get_active_right_view()
         new_view = self._new_view_for_document(doc, like=like)
 
+        old_view = self._left_view
+
+        # Remove old pinned view safely
         try:
-            if self._left_view is not None:
-                self._left_sw.remove(self._left_view)
+            if old_view is not None:                
+                self._left_sw.remove(old_view)
         except Exception:
             pass
 
+        # Swap state
         self._left_view = new_view
         self._pinned_doc = doc
 
+        # Add new pinned view
         try:
             self._left_sw.add(new_view)
             self._left_sw.show_all()
@@ -569,8 +594,8 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
 
         self._update_left_header_label()
 
-        # Refresh font sync against the current right pane.
-        self._install_font_sync(refresh_only=False)
+        # Refresh sync against the current right pane
+        self._install_font_sync()
 
     # ---------------- Notebook / tabs ----------------
 
@@ -639,7 +664,10 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
 
     def _on_switch_page(self, notebook, page, page_num):
         _debug(f"switch-page: {page_num}")
-        self._install_font_sync(refresh_only=True)
+        # On tab change: LEFT must mirror the newly active RIGHT zoom;
+        # wrap-mode remains global while split is active.
+        self._install_font_sync()
+
 
     # ---------------- Font sync ----------------
 
@@ -652,39 +680,65 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
         except Exception:
             return None
 
-    def _install_font_sync(self, refresh_only=False):
+    def _install_font_sync(self):
         """
-        Mirror font/zoom between the LEFT pinned view and the RIGHT active tab view.
-        refresh_only=True updates the left view to match the active right view.
+        Rules (while split is active):
+        - Each RIGHT tab keeps its own zoom (font-scale).
+        - LEFT pinned view ALWAYS mirrors the zoom of the ACTIVE RIGHT tab.
+        - wrap-mode is treated as global: a change in LEFT or ACTIVE RIGHT is applied
+          to LEFT + all RIGHT views.
         """
         lv = self._left_view
         rv = self._get_active_right_view()
         if lv is None or rv is None:
             return
 
-        if refresh_only:
-            self._apply_font_like(rv, lv)
-            return
+        # Initialize global wrap from the active RIGHT view the first time.
+        if self._global_wrap_mode is None:
+            self._capture_wrap_from_view(rv)
 
-        self._remove_font_sync()
+        # If the active RIGHT view changed, rewire signals to the new source view.
+        if rv is not self._font_sync_src_view or lv is not self._font_sync_dst_view:
+            self._remove_font_sync()
+            self._font_sync_src_view = rv
+            self._font_sync_dst_view = lv
 
-        for src, dst in ((rv, lv), (lv, rv)):
-            try:
-                sid = src.connect("style-updated", self._on_style_updated, src, dst)
-                self._font_sids.append((src, sid))
-            except Exception:
-                pass
-
+            # RIGHT -> LEFT (zoom + font)
             for prop in ("font-desc", "font-scale"):
                 try:
-                    src.get_property(prop)
-                    sid = src.connect(f"notify::{prop}", self._on_style_updated, src, dst)
-                    self._font_sids.append((src, sid))
+                    rv.get_property(prop)
+                    sid = rv.connect(f"notify::{prop}", self._on_right_view_changed, rv, lv)
+                    self._font_sids.append((rv, sid))
                 except Exception:
                     pass
 
-        # Initial sync from RIGHT to LEFT
+            try:
+                sid = rv.connect("style-updated", self._on_right_view_style_updated, rv, lv)
+                self._font_sids.append((rv, sid))
+            except Exception:
+                pass
+
+            # Any wrap change in ACTIVE RIGHT becomes global
+            try:
+                rv.get_property("wrap-mode")
+                sid = rv.connect("notify::wrap-mode", self._on_any_wrap_mode_changed)
+                self._font_sids.append((rv, sid))
+            except Exception:
+                pass
+
+            # Any wrap change in LEFT becomes global
+            try:
+                lv.get_property("wrap-mode")
+                sid = lv.connect("notify::wrap-mode", self._on_any_wrap_mode_changed)
+                self._font_sids.append((lv, sid))
+            except Exception:
+                pass
+
+        # Always refresh LEFT from current active RIGHT (especially on tab switch).
         self._apply_font_like(rv, lv)
+
+        # Enforce global wrap everywhere.
+        self._apply_wrap_everywhere()
 
     def _remove_font_sync(self):
         for obj, sid in self._font_sids:
@@ -693,14 +747,11 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
             except Exception:
                 pass
         self._font_sids = []
-
-    def _on_style_updated(self, widget, *args):
-        if len(args) < 2:
-            return
-        src, dst = args[-2], args[-1]
-        self._apply_font_like(src, dst)
+        self._font_sync_src_view = None
+        self._font_sync_dst_view = None
 
     def _apply_font_like(self, src, dst):
+        # Mirror font + zoom only (wrap handled separately as global).
         for prop in ("font-desc", "font-scale"):
             try:
                 dst.set_property(prop, src.get_property(prop))
@@ -714,6 +765,71 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
             dst.override_font(font_desc)
         except Exception:
             pass
+    
+    def _iter_right_views(self):
+        """Yield all tab views from the window (right pane tabs)."""
+        try:
+            tabs = list(self.window.get_tabs())
+        except Exception:
+            tabs = []
+
+        for t in tabs:
+            try:
+                v = t.get_view()
+            except Exception:
+                v = None
+            if v is not None:
+                yield v
+
+    def _capture_wrap_from_view(self, view):
+        if view is None:
+            return
+        try:
+            self._global_wrap_mode = view.get_property("wrap-mode")
+        except Exception:
+            self._global_wrap_mode = Gtk.WrapMode.NONE
+
+    def _apply_wrap_everywhere(self):
+        """Apply the current global wrap-mode to LEFT + all RIGHT views."""
+        if self._global_wrap_mode is None:
+            return
+
+        if self._wrap_syncing:
+            return
+
+        self._wrap_syncing = True
+        try:
+            for v in self._iter_right_views():
+                try:
+                    v.set_property("wrap-mode", self._global_wrap_mode)
+                except Exception:
+                    pass
+
+            if self._left_view is not None:
+                try:
+                    self._left_view.set_property("wrap-mode", self._global_wrap_mode)
+                except Exception:
+                    pass
+        finally:
+            self._wrap_syncing = False
+
+    def _on_right_view_changed(self, widget, pspec, src, dst):
+        # src is ACTIVE RIGHT view, dst is LEFT view
+        self._apply_font_like(src, dst)
+
+
+    def _on_right_view_style_updated(self, widget, src, dst):
+        self._apply_font_like(src, dst)
+
+
+    def _on_any_wrap_mode_changed(self, view, pspec):
+        if self._wrap_syncing:
+            return
+        try:
+            self._global_wrap_mode = view.get_property("wrap-mode")
+        except Exception:
+            return
+        self._apply_wrap_everywhere()
 
     # ---------------- Widget discovery ----------------
 
@@ -884,6 +1000,12 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
                 paned.set_position(alloc.width // 2)
         except Exception:
             pass
+        return False
+        
+    def _late_font_sync(self):
+        # Run after the UI settles; fixes occasional missing zoom mirroring.
+        if self._active:
+            self._install_font_sync()
         return False
         
     # ---------------- Statusbar: clickable "Toggle Split Pane" ----------------

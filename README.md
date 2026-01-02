@@ -13,6 +13,31 @@ This repository is organized as **one folder per plugin**. Each folder contains 
 - **xed-split-pane**: split workflow with a **pinned LEFT pane** + normal tabbed editor on the **RIGHT**.
 - **xed-terminal**: embedded **VTE terminal** in the bottom panel (tabs + preferences).
 
+## Download
+
+Choose **one** of the options below:
+
+### Option 1: Git clone (recommended)
+HTTPS:
+```bash
+git clone --depth 1 https://github.com/gabriellaraujocoding/xed-extra-plugins.git
+```
+
+SSH (only if you have GitHub SSH keys configured):
+```bash
+git clone --depth 1 git@github.com:gabriellaraujocoding/xed-extra-plugins.git
+```
+
+### Option 2: Download ZIP (no Git required)
+1. Open the repository on GitHub
+2. Click the green **Code** button
+3. Click **Download ZIP**
+
+### Option 3: Download from Releases
+1. Open the **Releases** page on GitHub
+2. Open the latest release
+3. Download **Source code (zip)**
+
 ## Install
 
 Create the Xed plugins directory:
@@ -32,7 +57,7 @@ cp -r xed-split-pane ~/.local/share/xed/plugins/
 cp -r xed-terminal ~/.local/share/xed/plugins/
 ```
 
-Restart Xed and enable them:
+Enable the plugins and restart Xed:
 - **Edit → Preferences → Plugins**
 
 ## Uninstall
