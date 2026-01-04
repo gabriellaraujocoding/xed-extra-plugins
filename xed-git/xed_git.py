@@ -471,6 +471,14 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.file_contents_list = None
         self.file_context = None
         self.changed_sid = 0
+        
+        # --- NEW: repository monitoring (to refresh after commit) ---
+        self._repo = None
+        self._repo_monitors = []          # list of (Gio.FileMonitor, handler_id)
+        self._repo_refresh_idle_id = 0    # coalesce multiple fs events
+        
+        # --- NEW: track which .git dir is being monitored ---
+        self._repo_git_dir = None
 
     def do_activate(self):
         self._active = True
@@ -498,6 +506,12 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self._active = False
         if self.diff_timeout != 0:
             GLib.source_remove(self.diff_timeout)
+            self.diff_timeout = 0
+            
+        # --- NEW: stop monitoring repository files ---
+        self._teardown_repo_monitors()
+        self._repo = None
+        self._repo_git_dir = None
 
         self.disconnect_buffer()
         self.buffer = None
@@ -545,7 +559,6 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
         # Disconnect other buffer signals if present
         self.disconnect(buf, getattr(self, "buffer_signals", []))
 
-
     def disconnect_view(self):
         if hasattr(self, 'view_signals'):
             self.disconnect(self.view, self.view_signals)
@@ -560,6 +573,19 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
 
         if self.buffer:
             self.disconnect_buffer()
+            
+        # When buffer changes, drop repo monitors + cached baseline,
+        # otherwise old repo events / stale baseline may affect the new buffer.
+        self._teardown_repo_monitors()
+        self._repo = None
+        self._repo_git_dir = None
+
+        self.file_contents_list = None
+        self.file_context = None
+
+        # Optional: clear gutter immediately until the new buffer loads
+        if self.diff_renderer is not None:
+            self.diff_renderer.set_file_context({})
 
         self.buffer = view.get_buffer()
         self.changed_sid = 0
@@ -591,13 +617,39 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
             self.diff_renderer.set_file_context({})
             self.file_context = None
             self.file_contents_list = None
+            
+            # --- NEW: stop monitoring when leaving git repos ---
+            self._teardown_repo_monitors()
+            self._repo = None
+            self._repo_git_dir = None
 
             # Disconnect 'changed' if we had connected it before
             if self.changed_sid:
-                self.buffer.disconnect(self.changed_sid)
+                try:
+                    self.buffer.disconnect(self.changed_sid)
+                except Exception:
+                    pass    
                 self.changed_sid = 0
 
             return
+            
+        # --- NEW: ensure repository monitors are active (commit -> refresh) ---
+        new_git_dir = None
+        try:
+            loc = repo.get_location()
+            if loc is not None:
+                new_git_dir = loc.get_path()
+        except Exception:
+            new_git_dir = None
+            
+        # If we switched repositories, rebuild monitors for the new .git
+        if new_git_dir != self._repo_git_dir:
+            self._teardown_repo_monitors()
+            self._repo_git_dir = new_git_dir
+        
+        self._repo = repo
+        if self._repo_git_dir:
+            self._setup_repo_monitors(repo)
 
         # We are inside a git repo: ensure we track edits
         if self.file_contents_list is None and not self.changed_sid:
@@ -740,5 +792,113 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
         self.file_context = file_context
         self.diff_renderer.set_file_context(file_context)
         return False
+        
+    def _teardown_repo_monitors(self):
+        """Disconnect and cancel all .git file monitors."""
+        for mon, hid in list(self._repo_monitors):
+            try:
+                if hid:
+                    mon.disconnect(hid)
+            except Exception:
+                pass
+            try:
+                mon.cancel()
+            except Exception:
+                pass
+        self._repo_monitors = []
+
+        if self._repo_refresh_idle_id:
+            try:
+                GLib.source_remove(self._repo_refresh_idle_id)
+            except Exception:
+                pass
+            self._repo_refresh_idle_id = 0
+
+    def _setup_repo_monitors(self, repo):
+        """
+        Monitor .git files that change on commit, so we can refresh the baseline
+        (HEAD) and clear the gutter automatically.
+        """
+        # If monitors already exist, keep them (cheap + avoids duplicates)
+        if self._repo_monitors:
+            # Already monitoring something; update_location handles switching repos
+            return
+
+        git_dir = None
+        try:
+            loc = repo.get_location()
+            if loc is not None:
+                git_dir = loc.get_path()
+        except Exception:
+            git_dir = None
+
+        if not git_dir:
+            return
+
+        head_path = os.path.join(git_dir, "HEAD")
+        index_path = os.path.join(git_dir, "index")
+        packed_refs_path = os.path.join(git_dir, "packed-refs")
+
+        # Resolve current HEAD reference file (refs/heads/branch)
+        ref_path = None
+        try:
+            with open(head_path, "r", encoding="utf-8", errors="replace") as f:
+                head_txt = f.read().strip()
+            if head_txt.startswith("ref:"):
+                ref_rel = head_txt.split(":", 1)[1].strip()
+                ref_path = os.path.join(git_dir, ref_rel)
+        except Exception:
+            pass
+
+        paths = [index_path, head_path, packed_refs_path]
+        if ref_path:
+            paths.append(ref_path)
+
+        for p in paths:
+            try:
+                gf = Gio.File.new_for_path(p)
+                mon = gf.monitor_file(Gio.FileMonitorFlags.NONE, None)
+                hid = mon.connect("changed", self._on_repo_monitor_changed)
+                self._repo_monitors.append((mon, hid))
+            except GLib.Error:
+                # Some files may not exist (e.g., packed-refs). That's fine.
+                continue
+            except Exception:
+                continue
+
+    def _on_repo_monitor_changed(self, monitor, file, other_file, event_type):
+        """
+        Called when .git/index or refs change (commit, reset, checkout, etc.).
+        We coalesce multiple events and then refresh HEAD baseline + gutter.
+        """
+        if not self._active:
+            return
+
+        # Coalesce a burst of fs events into a single refresh.
+        if self._repo_refresh_idle_id:
+            return
+
+        self._repo_refresh_idle_id = GLib.idle_add(self._on_repo_refresh_idle)
+
+    def _on_repo_refresh_idle(self):
+        self._repo_refresh_idle_id = 0
+
+        if not self._active or self.buffer is None:
+            return GLib.SOURCE_REMOVE
+
+        # The branch/ref may have changed; rebuild monitors to follow new ref.
+        if self._repo is not None:
+            self._teardown_repo_monitors()
+            self._repo = self._repo  # keep reference
+            self._setup_repo_monitors(self._repo)
+
+        # Force baseline reload from the new HEAD and recompute the diff.
+        self.file_contents_list = None
+        self.file_context = None
+
+        # This will reload HEAD version into file_contents_list and call update()
+        self.update_location()
+
+        return GLib.SOURCE_REMOVE
 
 # ex:ts=4:et:

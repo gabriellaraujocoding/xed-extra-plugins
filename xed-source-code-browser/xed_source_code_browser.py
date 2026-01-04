@@ -607,7 +607,7 @@ class SourceCodeBrowserPlugin(GObject.Object, Xed.WindowActivatable, PeasGtk.Con
         # typically an icon-name from the current icon theme.
         # Use a stable themed icon name as default.
         icon_name_candidates = [
-            #"applications-development",
+            "applications-development",
             "text-x-generic",
             "text-x-generic",
             "code-context",  # harmless if missing
