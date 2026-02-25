@@ -1061,17 +1061,17 @@ class XedSplitPaneWindowActivatable(GObject.Object, Xed.WindowActivatable):
                     right_box.reorder_child(eventbox, 0)
                 except Exception:
                     pass
-                right_box.show_all()
                 self._status_toggle_parent = right_box
             else:
                 # Fallback: append as the LAST item (right-most) in the root statusbar box.
                 root_box.pack_end(eventbox, False, False, 6)
-                root_box.show_all()
                 self._status_toggle_parent = root_box
+
+            # Show only our widget (do not force-show the whole statusbar container).
+            eventbox.show_all()
 
             self._status_toggle_eventbox = eventbox
             self._status_toggle_label = label
-
             _debug("statusbar: toggle widget installed (right side)")
             return True
         except Exception:
