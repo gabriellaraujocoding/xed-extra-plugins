@@ -12,7 +12,14 @@ may be distributed under different licenses.
 Summary (per plugin)
 --------------------
 
-1) xed-git
++ xed-find-in-files
+  - Path: xed-find-in-files/
+  - SPDX: GPL-2.0-or-later
+  - Copyright:
+      * 2026 Gabriell Araujo
+  - License text: xed-find-in-files/LICENSE (and repository root LICENSE)
+
++ xed-git
   - Path: xed-git/
   - SPDX: GPL-2.0-or-later
   - Copyright:
@@ -21,14 +28,14 @@ Summary (per plugin)
       * 2025 Gabriell Araujo (Xed port)
   - License text: xed-git/LICENSE (and repository root LICENSE)
 
-2) xed-indentation-guides
++ xed-indentation-guides
   - Path: xed-indentation-guides/
   - SPDX: GPL-2.0-or-later
   - Copyright:
       * 2025 Gabriell Araujo
   - License text: xed-indentation-guides/LICENSE (and repository root LICENSE)
 
-3) xed-quick-highlight
++ xed-quick-highlight
   - Path: xed-quick-highlight/
   - SPDX: GPL-2.0-or-later
   - Copyright:
@@ -36,7 +43,14 @@ Summary (per plugin)
       * 2025 Gabriell Araujo (Xed port)
   - License text: xed-quick-highlight/LICENSE (and repository root LICENSE)
 
-4) xed-source-code-browser
++ xed-smart-overview
+  - Path: xed-smart-overview/
+  - SPDX: GPL-2.0-or-later
+  - Copyright:
+      * 2026 Gabriell Araujo
+  - License text: xed-smart-overview/LICENSE (and repository root LICENSE)
+  
++ xed-source-code-browser
   - Path: xed-source-code-browser/
   - SPDX: BSD-3-Clause
   - Copyright:
@@ -45,18 +59,18 @@ Summary (per plugin)
       * 2025 Gabriell Araujo (Xed port)
   - License text: xed-source-code-browser/LICENSE
 
-5) xed-split-pane
++ xed-split-pane
   - Path: xed-split-pane/
   - SPDX: GPL-2.0-or-later
   - Copyright:
       * 2025 Gabriell Araujo
   - License text: xed-split-pane/LICENSE (and repository root LICENSE)
    
-6) xed-terminal
++ xed-terminal
   - Path: xed-terminal/
   - SPDX: GPL-2.0-or-later
   - Copyright:
-      * 2005–2006 Paolo Borelli
+      * 2005-2006 Paolo Borelli
       * 2025 Gabriell Araujo (Xed port)
   - License text: xed-terminal/LICENSE (and repository root LICENSE)
 

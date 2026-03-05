@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=xed_smart_overview
+IAge=3
+Name=Xed Smart Overview
+Description=VS Code-like overview: click-and-drag the visible overlay to scroll smoothly
+Authors=Gabriell Araujo
+Copyright=Copyright (c) 2026 Gabriell Araujo
+Website=https://github.com/gabriellaraujocoding/xed-extra-plugins
