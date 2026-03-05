@@ -61,8 +61,24 @@ from gi.repository import Xed
 # -------------------- Global variables --------------------
 
 # Global drag speed multiplier (1.0 = baseline).
-_DRAG_SPEED_MULT = 1.25
+_DRAG_SPEED_MULT_DEFAULT = 1.25
+_DRAG_SPEED_MULT_MIN = 0.50
+_DRAG_SPEED_MULT_MAX = 3.00
+_DRAG_SPEED_MULT_STEP = 0.05
+_DRAG_SPEED_MULT = _DRAG_SPEED_MULT_DEFAULT
 
+def _apply_drag_speed_from_config(cfg: dict) -> None:
+    # Apply runtime settings (module-level) from config values.
+    global _DRAG_SPEED_MULT
+
+    try:
+        v = float(cfg.get("drag_speed_mult", _DRAG_SPEED_MULT_DEFAULT))
+    except Exception:
+        v = _DRAG_SPEED_MULT_DEFAULT
+
+    v = max(_DRAG_SPEED_MULT_MIN, min(_DRAG_SPEED_MULT_MAX, v))
+    _DRAG_SPEED_MULT = v
+    
 # Preferably provide a Preferences UI (PeasGtk.Configurable), but keep plugin loadable if missing.
 _HAVE_PEASGTK = False
 try:
@@ -95,6 +111,9 @@ _DEFAULTS = {
 
     # If true, clicking outside the scrubber will NOT jump (it will be ignored).
     "disable_click_outside": True,
+    
+    # Global drag speed multiplier (higher => faster).
+    "drag_speed_mult": _DRAG_SPEED_MULT_DEFAULT,
 }
 
 def _config_path() -> str:
@@ -145,6 +164,7 @@ class ConfigStore:
 
 
 _CONFIG = ConfigStore(_config_path())
+_apply_drag_speed_from_config(_CONFIG.data)
 
 # -------------------- Preferences UI --------------------
 
@@ -167,12 +187,65 @@ class ConfigureWidget(Gtk.Box):
         self.pack_start(mk_check("Draw _scrubber area (debug)", "draw_scrubber_area"), False, False, 0)
         self.pack_start(mk_check("_Disable click outside scrubber (no jump)", "disable_click_outside"), False, False, 0)
 
+        # Drag speed row: [-] 1.25x [+]
+        speed_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        speed_row.set_halign(Gtk.Align.START)
+
+        speed_row.pack_start(Gtk.Label(label="Drag speed"), False, False, 0)
+
+        btn_minus = Gtk.Button.new_with_label("-")
+        btn_plus = Gtk.Button.new_with_label("+")
+        btn_minus.set_can_focus(False)
+        btn_plus.set_can_focus(False)
+
+        self._drag_speed_label = Gtk.Label()
+        self._drag_speed_label.set_width_chars(6)
+        self._drag_speed_label.set_xalign(0.5)
+
+        # Load from config (already filled by _DEFAULTS).
+        self._drag_speed_value = float(data.get("drag_speed_mult", _DRAG_SPEED_MULT_DEFAULT))
+        self._update_drag_speed_label()
+
+        btn_minus.connect("clicked", self._on_drag_speed_delta, -1)
+        btn_plus.connect("clicked", self._on_drag_speed_delta, +1)
+
+        speed_row.pack_start(btn_minus, False, False, 0)
+        speed_row.pack_start(self._drag_speed_label, False, False, 0)
+        speed_row.pack_start(btn_plus, False, False, 0)
+
+        self.pack_start(speed_row, False, False, 0)
+        
         self.show_all()
 
     def _on_toggle(self, btn: Gtk.CheckButton, key: str) -> None:
         self._store.data[key] = bool(btn.get_active())
         self._store.save()
         self._on_change_cb(self._store.data)
+        
+    def _update_drag_speed_label(self) -> None:
+        # Show like "1.25x".
+        try:
+            self._drag_speed_label.set_text(f"{float(self._drag_speed_value):.2f}x")
+        except Exception:
+            self._drag_speed_label.set_text("")
+
+    def _on_drag_speed_delta(self, _btn: Gtk.Button, direction: int) -> None:
+        # Step per click. Tune as you like.
+        step = 0.05
+        new_value = float(self._drag_speed_value) + (float(direction) * step)
+        self._set_drag_speed_value(new_value)
+
+    def _set_drag_speed_value(self, value: float) -> None:
+        # Clamp and persist.
+        value = max(0.50, min(3.00, float(value)))
+        value = round(value, 2)
+
+        self._drag_speed_value = value
+        self._update_drag_speed_label()
+
+        self._store.data["drag_speed_mult"] = value
+        self._store.save()
+        self._on_change_cb(self._store.data)        
 
 # -------------------- Helpers --------------------
 
@@ -829,6 +902,7 @@ if _HAVE_PEASGTK:
         def __init__(self):
             super().__init__()
             _CONFIG.load()
+            _apply_drag_speed_from_config(_CONFIG.data)
 
         def do_activate(self):
             pass
@@ -842,11 +916,13 @@ if _HAVE_PEASGTK:
         # PeasGtk.Configurable
         def do_create_configure_widget(self):
             _CONFIG.load()
+            _apply_drag_speed_from_config(_CONFIG.data)
             return ConfigureWidget(_CONFIG, self._on_config_changed)
 
         def _on_config_changed(self, cfg: dict) -> None:
             _CONFIG.data.update(cfg)
             _CONFIG.save()
+            _apply_drag_speed_from_config(_CONFIG.data)
 else:
     class SmartOverviewPlugin(GObject.Object, Xed.WindowActivatable):
         __gtype_name__ = "XedSmartOverviewPlugin"
