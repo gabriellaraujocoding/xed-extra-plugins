@@ -10,7 +10,7 @@ This repository is organized as **one folder per plugin**. Each folder contains 
 - **xed-git**: highlights lines changed since the last commit (**green=added, orange=modified, red=removed**).
 - **xed-indentation-guides**: **VS Code-like indentation guides** inside the editor based on leading whitespace and tab width.
 - **xed-quick-highlight**: highlights occurrences of the currently selected text.
-- **xed-smart-overview**: **VS Code-like overview**: click and drag the visible overlay to scroll smoothly.
+- **xed-smart-overview**: fixes unexpected jumps and inconsistent dragging in Xed’s overview/minimap.
 - **xed-source-code-browser**: **symbol tree** (functions/classes/macros/variables, etc.) for the current document using **ctags**.
 - **xed-split-pane**: split workflow with a **pinned LEFT pane** + normal tabbed editor on the **RIGHT**.
 - **xed-terminal**: embedded **VTE terminal** in the bottom panel (tabs + preferences).
