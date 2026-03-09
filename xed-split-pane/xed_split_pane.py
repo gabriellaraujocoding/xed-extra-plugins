@@ -47,8 +47,12 @@ from gi.repository import GObject, Gtk, Gio, GLib, Gdk
 try:
     gi.require_version("Xed", "1.0")
     from gi.repository import Xed
-except Exception:  # pragma: no cover
-    Xed = None
+except Exception:
+    try:
+        gi.require_version("Pluma", "1.0")
+        from gi.repository import Pluma as Xed
+    except Exception:  # pragma: no cover
+        Xed = None
 
 def _env_truthy(name: str) -> bool:
     v = GLib.getenv(name)

@@ -54,11 +54,14 @@ import traceback
 import os.path
 import difflib
 
-# Prefer Xed; fallback to Gedit (so the same code can run in both editors).
+# Prefer Xed; fallback to Pluma and Gedit (so the same code can run in all editors).
 try:
     gi.require_version('Xed', '1.0')
 except ValueError:
-    gi.require_version('Gedit', '3.0')
+    try:
+        gi.require_version('Pluma', '1.0')
+    except:
+        gi.require_version('Gedit', '3.0')
 
 gi.require_version('Gtk', '3.0')
 gi.require_version('Ggit', '1.0')
@@ -68,7 +71,11 @@ gi.require_version('Ggit', '1.0')
 try:
     from gi.repository import Xed as Gedit
 except ImportError:
-    from gi.repository import Gedit
+    try:
+        from gi.repository import Pluma as Gedit
+        pluma = True
+    except:
+        from gi.repository import Gedit
 
 from gi.repository import GLib, Gdk, Gtk, GtkSource, GObject, Gio, Ggit
 
@@ -606,7 +613,10 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
         if not self._active:
             return
             
-        self.location = self.buffer.get_file().get_location()
+        if pluma:
+            self.location = self.buffer.get_location()
+        else:
+            self.location = self.buffer.get_file().get_location()
 
         repo = None
         if self.location is not None:

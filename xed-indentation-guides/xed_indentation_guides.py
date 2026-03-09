@@ -43,7 +43,10 @@ from gi.repository import GLib, GObject, Gtk, Gdk
 try:
     from gi.repository import Xed as Gedit  # Linux Mint Xed
 except Exception:
-    from gi.repository import Gedit  # type: ignore
+    try:
+        from gi.repository import Pluma as Gedit  # MATE Pluma
+    except Exception:
+        from gi.repository import Gedit  # type: ignore
 
 import sys
 
