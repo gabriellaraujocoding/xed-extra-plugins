@@ -73,7 +73,6 @@ try:
 except ImportError:
     try:
         from gi.repository import Pluma as Gedit
-        pluma = True
     except:
         from gi.repository import Gedit
 
@@ -613,7 +612,7 @@ class GitViewActivatable(GObject.Object, Gedit.ViewActivatable):
         if not self._active:
             return
             
-        if pluma:
+        if hasattr(self.buffer, "get_location"):
             self.location = self.buffer.get_location()
         else:
             self.location = self.buffer.get_file().get_location()
