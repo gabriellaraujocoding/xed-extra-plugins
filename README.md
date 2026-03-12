@@ -1,6 +1,6 @@
 # Xed Extra Plugins
 
-A practical collection of **extra plugins for Xed (Linux Mint)**, mainly focused on **programming productivity**.
+Xed Extra Plugins brings **modern IDE-like features** to Xed while preserving the **speed**, **simplicity**, and **lightweight nature** of a native GTK editor.
 
 This repository is organized as **one folder per plugin**. Each folder contains its own `.plugin` descriptor and one or more `.py` files (plus a plugin-specific README).
 
